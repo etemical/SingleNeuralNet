@@ -49,7 +49,7 @@ class SingleNeural:
         
         return A
 
-class CrossEntroyLoss:
+class CrossEntropyLoss:
 
     def __call__(self, A, Y, input_data):
         """
@@ -107,7 +107,7 @@ class Train:
         """
         self.net = SingleNeural(64*64*3)
         self.train_set, self.test_set = self.get_dataset()
-        self.loss_func = CrossEntroyLoss()
+        self.loss_func = CrossEntropyLoss()
         self.optimizer = optimizer(self.net)
 
     def get_dataset(self):
