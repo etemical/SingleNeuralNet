@@ -2,6 +2,7 @@ import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 from PIL import Image
+import pickle
 
 def sigmoid(z):
     """
@@ -13,21 +14,18 @@ def sigmoid(z):
 
 class SingleNeural:
 
-    def __init__(self, *in_feature, params=None):
+    def __init__(self, in_feature, bias=True):
         """
         无训练好的的参数的话就初始化为0的参数，w和b 一样
         因为只有一个神经元，所以可以初始化为0
         但多个神经元就一定不能为0了，必须随机给数字，不然就跟一个神经元一样了
 
         :param in_feature: 接收的特征点的数目
-        :param params: 训练好的参数
+        :param bias: 是否加偏置项b
         """
-        if params is None:
-            self.weight = np.zeros((in_feature[0], 1))
+        self.weight = np.zeros((in_feature, 1))
+        if bias:
             self.bias = 0
-        else:
-            self.weight = params['weight']
-            self.bias = params['bias']
 
     def __call__(self, x):
 
@@ -43,7 +41,10 @@ class SingleNeural:
 
         x = x.T  # 转置为 可以跟w相乘的形式
 
-        z = np.dot(self.weight.T, x) + self.bias
+        z = np.dot(self.weight.T, x)
+
+        if hasattr(self, "bias"):
+            z += self.bias
 
         A = sigmoid(z)
         
@@ -73,9 +74,9 @@ class CrossEntropyLoss:
         """
 
         dz = self.A - self.Y
-        # print("dz:", dz)
+
         dw = np.dot(self.X.T, dz.T) / self.m
-        # print("dw:", self.dw)
+
         db = np.sum(dz) / self.m
 
         return {"dw": dw, "db": db}
@@ -85,7 +86,7 @@ class CrossEntropyLoss:
 
 class optimizer:
     """
-    # 更新梯度
+    # 定义优化器， 更新梯度
     # :param net: 需要更新的网络参数
     # :return:None
     """
@@ -96,7 +97,8 @@ class optimizer:
     def step(self, grads):
 
         self.net.weight = self.net.weight - self.lr * grads['dw']
-        self.net.bias = self.net.bias - self.lr * grads['db']
+        if hasattr(self.net, "bias"):
+            self.net.bias = self.net.bias - self.lr * grads['db']
 
 class Train:
 
@@ -169,12 +171,33 @@ class Train:
 
             if i % 100 == 0:
                 cost.append(loss.float())
-                print("损失是:", loss.float())
+                print("第{}次优化后，损失是:{}".format(i, loss.float()))
                 plt.clf()
                 plt.plot(cost)
                 plt.pause(0.1)
+        self.save(self.net, "my_net.m")
+        print("更新后的参数是:", self.net.weight, self.net.bias)
 
-        np.savez("my_net", weight=self.net.weight, bias=self.net.bias)
+
+    def save(self, net, path):
+        """
+        使用pickle 序列化到本地文件中，保存模型
+        :param net:
+        :param path:
+        :return:
+        """
+        with open(path, "wb") as f:
+            pickle.dump(net, f)
+
+    def load(self, path):
+        """
+        使用pickle 反序列化到内存中，读取模型
+        :param path:
+        :return: 保存的网络模型
+        """
+        with open(path, "rb") as f:
+            net = pickle.load(f)
+            return net
 
 
     def predict(self):
@@ -183,13 +206,12 @@ class Train:
         :return: 输出预测的正确率
         """
         input, target, classes = self.load_test_data(self.test_set)
-        params = np.load("my_net.npz")
-        # 传入训练好的参数，实例化网络
-        net = SingleNeural(params=params)
-        x = input
-        input = input.reshape(input.shape[0], -1)
-        output = net(input)
+        net = self.load("my_net.m")
 
+        # # 传入训练好的参数，实例化网络
+        x = input
+        input = input.reshape(input.shape[0], -1)  # reshape to N V  struct
+        output = net(input)
         # 把结果拿来做预测，1就是有猫，0就是没猫
         # print(output)
         prediction = np.where(output >= 0.5, 1, 0)
@@ -205,7 +227,7 @@ class Train:
         result = (prediction.flatten() == target).mean()
         # print("正确率:", str(result * 100) + "%")
 
-        img = Image.open(r"/Users/Mical/Documents/dataset_image/bg_pic/pic999.jpg")
+        img = Image.open(r"/Users/Mical/Documents/dataset_image/bg_pic/pic99.jpg")
         img = img.resize((64, 64), Image.ANTIALIAS)
         img = np.array(img) / 255.
 
@@ -225,3 +247,5 @@ if __name__ == '__main__':
     t = Train()
     # t.train()
     t.predict()
+
+
