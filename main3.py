@@ -176,7 +176,6 @@ class Train:
                 plt.plot(cost)
                 plt.pause(0.1)
         self.save(self.net, "my_net.m")
-        print("更新后的参数是:", self.net.weight, self.net.bias)
 
 
     def save(self, net, path):
